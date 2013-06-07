@@ -5,7 +5,7 @@ Author: Chris Morgan
 
 
 from datetime import datetime, date
-import urllib2
+import urllib.request
 import logging
 
 import pandas
@@ -24,18 +24,22 @@ class YahooData(object):
         self.start_date = date(*start_date)
         self.end_date = date(*end_date)
         self.adjust = adjust
+        self.panel = None
         self.data_frames = {}
         self.symbols = symbols if isinstance(symbols, list) else [symbols]
+        self.failed_symbols = []
 
     def download(self):
+
         for s in self.symbols:
             url = historical_price_url(s, self.start_date, self.end_date)
             df = get_historical_prices(url)
-
-            if self.adjust:
-                df = adjust(df, remove_original=True)
-
-            self.data_frames[s] = df
+            if isinstance(df, pandas.DataFrame):
+                if self.adjust:
+                    df = adjust(df, remove_original=True)
+                self.data_frames[s] = df
+            else:
+                self.failed_symbols.append(s)
 
     def head(self):
         return self.panel.head()
@@ -55,7 +59,7 @@ class YahooData(object):
         return self.panel.items.tolist()
 
     def __repr__(self):
-        return str(self.panel)
+        return str(self.data_frames)
 
 
 def historical_price_url(symbol, start_date, end_date):
@@ -80,22 +84,27 @@ def get_historical_prices(yahoo_url):
     """
 
     try:
-        lines = urllib2.urlopen(yahoo_url).readlines()
-    except Exception, e:
-        s = "Failed to download:\n{0}".format(e)
-        print s
+        lines = urllib.request.urlopen(yahoo_url)
+    except Exception as e:
+        s = "Failed to download:\n{0}, {1}".format(e, yahoo_url)
+        logging.error(s)
+        return
 
     dates = []
     data = [[] for i in range(6)]
 
     # header : Date, Open, High, Low, Close, Volume, Adj Close
-    for line in lines[1:]:
-        fields = line.rstrip().split(',')
+    for i, line in enumerate(lines):
+        # skip headers
+        if i == 0:
+            continue
+        fields = line.rstrip().decode('utf-8').split(',')
         dates.append(datetime.strptime(fields[0], '%Y-%m-%d'))
         for i, field in enumerate(fields[1:]):
             data[i].append(float(field))
 
     idx = pandas.Index(dates)
+
     data = dict(zip(['open', 'high', 'low', 'close', 'volume', 'adj_close'],
                     data))
 

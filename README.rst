@@ -1,3 +1,3 @@
 
-Financial Tools for Python
-==========================
+Financial Tools for Python 3
+============================
