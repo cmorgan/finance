@@ -7,8 +7,14 @@ Author: Chris Morgan
 from datetime import datetime, date
 import urllib.request
 import logging
+import pickle
 
 import pandas
+
+
+def load_YahooData(fname):
+    with open(fname, 'rb') as f:
+        return pickle.load(f)
 
 
 class YahooData(object):
@@ -42,7 +48,7 @@ class YahooData(object):
                 self.failed_symbols.append(s)
 
     def head(self):
-        return self.panel.head()
+        return self.panel.head() if self.panel else None
 
     @property
     def close(self):
@@ -53,6 +59,10 @@ class YahooData(object):
         :returns: slice of WidePanel for a given column
         '''
         return self.panel.minor_xs(column)
+
+    def save(self, fname):
+        with open(fname, 'wb') as f:
+            pickle.dump(self, f)
 
     @property
     def downloaded_symbols(self):
