@@ -3,7 +3,6 @@ Data from Yahoo Finance
 Author: Chris Morgan
 """
 
-
 from datetime import datetime, date
 import urllib.request
 import logging
@@ -21,7 +20,7 @@ class YahooData(object):
     def __init__(self, symbols, start_date=(1900, 1, 1),
                  end_date=date.today().timetuple()[0:3], adjust=True):
         """
-        :param symbols: list of symbols
+        :param symbols: iterator of symbols
         :param start_date: start date (y, m, d)
         :param end_date: end date (y, m, d)
         :param adjust: adjust all data against adjusted close
@@ -32,20 +31,26 @@ class YahooData(object):
         self.adjust = adjust
         self.panel = None
         self.data_frames = {}
-        self.symbols = symbols if isinstance(symbols, list) else [symbols]
+        # TODO: assert that symobols is iterable
+        self.symbols = symbols
         self.failed_symbols = []
 
     def download(self):
 
-        for s in self.symbols:
-            url = historical_price_url(s, self.start_date, self.end_date)
+        for sym in self.symbols:
+            url = historical_price_url(sym, self.start_date, self.end_date)
             df = get_historical_prices(url)
             if isinstance(df, pandas.DataFrame):
                 if self.adjust:
                     df = adjust(df, remove_original=True)
-                self.data_frames[s] = df
+                self.data_frames[sym] = df
+                print('Downloaded %i symbols' % len(self.data_frames))
             else:
-                self.failed_symbols.append(s)
+                self.failed_symbols.append(sym)
+                print('Failed %i symbols' % len(self.failed_symbols))
+
+    def construct_panel(self):
+        self.panel = pandas.WidePanel(self.data_frames)
 
     def head(self):
         return self.panel.head() if self.panel else None
